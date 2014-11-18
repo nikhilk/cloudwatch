@@ -10,17 +10,6 @@
       android:layout_height="wrap_content"
       android:layout_centerHorizontal="true"
       android:layout_centerVertical="true"
-      android:text="3:25pm"
       android:textColor="#FF0000"
       android:textSize="30sp" />
-
-  <TextView
-      android:id="@+id/watch_battery"
-      android:layout_width="wrap_content"
-      android:layout_height="wrap_content"
-      android:layout_alignRight="@id/watch_time"
-      android:layout_below="@+id/watch_time"
-      android:text="76%"
-      android:textColor="#FF0000"
-      android:textSize="13sp" />
 </RelativeLayout>
