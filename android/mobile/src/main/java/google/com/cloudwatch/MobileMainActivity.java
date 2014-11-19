@@ -4,43 +4,66 @@
 package google.com.cloudwatch;
 
 import android.accounts.AccountManager;
-import android.app.Activity;
-import android.app.Dialog;
-import android.content.Intent;
-import android.os.Bundle;
+import android.app.*;
+import android.app.*;
+import android.content.*;
+import android.os.*;
 import android.util.Log;
-import android.view.Menu;
-import android.view.MenuItem;
-import android.widget.ArrayAdapter;
-import android.widget.ListView;
-import android.widget.TextView;
-import android.widget.Toast;
+import android.view.*;
+import android.widget.*;
 
-import com.firebase.client.AuthData;
-import com.firebase.client.DataSnapshot;
-import com.firebase.client.Firebase;
-import com.firebase.client.FirebaseError;
-import com.firebase.client.ValueEventListener;
-import com.google.android.gms.auth.GooglePlayServicesAvailabilityException;
-import com.google.android.gms.auth.UserRecoverableAuthException;
-import com.google.android.gms.common.AccountPicker;
-import com.google.android.gms.common.GooglePlayServicesUtil;
+import com.firebase.client.*;
+import com.google.android.gms.auth.*;
+import com.google.android.gms.common.*;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
-public class MobileMainActivity extends Activity {
+import com.google.android.gms.common.api.*;
+import com.google.android.gms.wearable.*;
+
+public class MobileMainActivity extends Activity implements GoogleApiClient.ConnectionCallbacks {
 
   TextView _emailTextView;
   ListView _projectsListView;
   ArrayList<String> mProjects = new ArrayList<String>();
   ArrayAdapter<String> _projectsAdapter;
 
+  private GoogleApiClient _googleApiClient;
+
+  public MobileMainActivity() {
+  }
+
+  @Override
+  public void onConnected(Bundle bundle) {
+    sendMessage("/start_activity", "");
+  }
+
+  @Override
+  public void onConnectionSuspended(int i) {
+  }
+
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.activity_mobile_main);
+
+    final Button sendButton = (Button)findViewById(R.id.sendButton);
+    final EditText messageText = (EditText)findViewById(R.id.messageText);
+    sendButton.setOnClickListener(new View.OnClickListener() {
+      @Override
+      public void onClick(View view) {
+        String text = messageText.getText().toString();
+
+        if (!text.isEmpty()) {
+          messageText.setText("");
+          sendMessage("/message", text);
+        }
+      }
+    });
+
+    GoogleApiClient.Builder apiClientBuilder = new GoogleApiClient.Builder(this);
+    _googleApiClient = apiClientBuilder.addApi(Wearable.API).build();
+    _googleApiClient.connect();
 
     Firebase.setAndroidContext(this);
 
@@ -48,8 +71,8 @@ public class MobileMainActivity extends Activity {
     _projectsListView = (ListView) findViewById(R.id.projects_list);
 
     _projectsAdapter = new ArrayAdapter<String>(this,
-        android.R.layout.simple_list_item_1,
-        mProjects);
+                                                android.R.layout.simple_list_item_1,
+                                                mProjects);
     _projectsListView.setAdapter(_projectsAdapter);
 
     getUsername();
@@ -84,16 +107,17 @@ public class MobileMainActivity extends Activity {
       "oauth2:https://www.googleapis.com/auth/userinfo.profile";
 
   private void pickUserAccount() {
-    String[] accountTypes = new String[]{"com.google"};
+    String[] accountTypes = new String[] { "com.google" };
     Intent intent = AccountPicker.newChooseAccountIntent(null, null,
-        accountTypes, false, null, null, null, null);
+                                                         accountTypes, false, null, null, null, null);
     startActivityForResult(intent, REQUEST_CODE_PICK_ACCOUNT);
   }
 
   void getUsername() {
     if (_email == null) {
       pickUserAccount();
-    } else {
+    }
+    else {
       new GetUsernameTask(this, _email, SCOPE).execute();
     }
   }
@@ -113,13 +137,15 @@ public class MobileMainActivity extends Activity {
         updateEmail(email);
         // With the account name acquired, go get the auth token
         getUsername();
-      } else if (resultCode == RESULT_CANCELED) {
+      }
+      else if (resultCode == RESULT_CANCELED) {
         // The account picker dialog closed without selecting an account.
         // Notify users that they must pick an account to proceed.
         Toast.makeText(this, R.string.pick_account, Toast.LENGTH_SHORT).show();
       }
-    } else if (requestCode == REQUEST_CODE_RECOVER_FROM_PLAY_SERVICES_ERROR
-        && resultCode == RESULT_OK) {
+    }
+    else if (requestCode == REQUEST_CODE_RECOVER_FROM_PLAY_SERVICES_ERROR
+                 && resultCode == RESULT_OK) {
       getUsername();
     }
   }
@@ -136,19 +162,20 @@ public class MobileMainActivity extends Activity {
           // The Google Play services APK is old, disabled, or not present.
           // Show a dialog created by Google Play services that allows
           // the user to update the APK
-          int statusCode = ((GooglePlayServicesAvailabilityException)e)
-              .getConnectionStatusCode();
+          int statusCode = ((GooglePlayServicesAvailabilityException) e)
+                               .getConnectionStatusCode();
           Dialog dialog = GooglePlayServicesUtil.getErrorDialog(statusCode,
-              MobileMainActivity.this,
-              REQUEST_CODE_RECOVER_FROM_PLAY_SERVICES_ERROR);
+                                                                MobileMainActivity.this,
+                                                                REQUEST_CODE_RECOVER_FROM_PLAY_SERVICES_ERROR);
           dialog.show();
-        } else if (e instanceof UserRecoverableAuthException) {
+        }
+        else if (e instanceof UserRecoverableAuthException) {
           // Unable to authenticate, such as when the user has not yet granted
           // the app access to the account, but the user can fix this.
           // Forward the user to an activity in Google Play services.
-          Intent intent = ((UserRecoverableAuthException)e).getIntent();
+          Intent intent = ((UserRecoverableAuthException) e).getIntent();
           startActivityForResult(intent,
-              REQUEST_CODE_RECOVER_FROM_PLAY_SERVICES_ERROR);
+                                 REQUEST_CODE_RECOVER_FROM_PLAY_SERVICES_ERROR);
         }
       }
     });
@@ -156,7 +183,7 @@ public class MobileMainActivity extends Activity {
 
   void processProjectData(List<Object> projects) {
     mProjects.clear();
-    for (Object p: projects) {
+    for (Object p : projects) {
       Map<String, Object> project = (Map<String, Object>) p;
       mProjects.add((String) project.get(ProjectSchema.ID));
     }
@@ -193,11 +220,44 @@ public class MobileMainActivity extends Activity {
               Log.d("AUTH", "Error: " + firebaseError.toString());
             }
           });
-        } catch(Throwable ex) {
+        }
+        catch (Throwable ex) {
           Log.d("AUTH", "Failed to login", ex);
         }
       }
     });
   }
 
+
+  @Override
+  protected void onDestroy() {
+    _googleApiClient.disconnect();
+    super.onDestroy();
+  }
+
+  private void sendMessage(String path, String text) {
+    MessageSender sender = new MessageSender(path, text);
+    new Thread(sender).start();
+  }
+
+
+  private final class MessageSender implements Runnable {
+
+    private final String _path;
+    private final byte[] _data;
+
+    public MessageSender(String path, String message) {
+      _path = path;
+      _data = message.getBytes();
+    }
+
+    @Override
+    public void run() {
+      NodeApi.GetConnectedNodesResult nodes =
+          Wearable.NodeApi.getConnectedNodes(_googleApiClient).await();
+      for (Node node : nodes.getNodes()) {
+        Wearable.MessageApi.sendMessage(_googleApiClient, node.getId(), _path, _data).await();
+      }
+    }
+  }
 }
