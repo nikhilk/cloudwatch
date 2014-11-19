@@ -202,7 +202,8 @@ public class MobileMainActivity extends Activity implements GoogleApiClient.Conn
   void processProjectData(Map<String, Object> projects) {
     _projects.clear();
     for (Map.Entry<String, Object> entry : projects.entrySet()) {
-              _projects.add(entry.getKey());
+      Map<String, Object> project = (Map<String, Object>) entry.getValue();
+      _projects.add((String) project.get("displayName"));
     }
     _projectsAdapter.notifyDataSetChanged();
   }
