@@ -8,11 +8,13 @@ import android.content.*;
 import android.os.*;
 import android.support.wearable.view.*;
 import android.widget.*;
+import com.fasterxml.jackson.jr.ob.*;
 import com.google.android.gms.common.api.*;
 import com.google.android.gms.wearable.*;
 
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
+import java.io.*;
+import java.text.*;
+import java.util.*;
 
 public final class WatchMainActivity extends Activity
     implements MessageApi.MessageListener, GoogleApiClient.ConnectionCallbacks {
@@ -67,8 +69,17 @@ public final class WatchMainActivity extends Activity
     runOnUiThread(new Runnable() {
       @Override
       public void run() {
-        String message = new String(messageEvent.getData());
-        _timeLabel.setText(message);
+        try {
+          String json = new String(messageEvent.getData());
+          Map<String, Object> data = JSON.std.mapFrom(json);
+
+          String newText = data.get("timestamp") + ":" + data.get("value");
+          _timeLabel.setText(newText);
+        }
+        catch (IOException e) {
+          e.printStackTrace();
+          // Ignore any errors
+        }
       }
     });
   }

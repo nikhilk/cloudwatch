@@ -71,7 +71,10 @@ public class MobileMainActivity extends Activity implements GoogleApiClient.Conn
 
         if (!text.isEmpty()) {
           messageText.setText("");
-          sendMessage("/message", text);
+
+          String json = "{\"timestamp\": %d, \"value\": %d}";
+          String data = String.format(json, System.currentTimeMillis(), 123);
+          sendMessage("/message", data);
         }
       }
     });
