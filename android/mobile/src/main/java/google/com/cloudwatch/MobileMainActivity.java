@@ -4,28 +4,43 @@
 package google.com.cloudwatch;
 
 import android.accounts.AccountManager;
-import android.app.*;
-import android.app.*;
-import android.content.*;
-import android.os.*;
+import android.app.Activity;
+import android.app.Dialog;
+import android.content.Intent;
+import android.os.Bundle;
 import android.util.Log;
-import android.view.*;
-import android.widget.*;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.view.View;
+import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ListView;
+import android.widget.TextView;
+import android.widget.Toast;
 
-import com.firebase.client.*;
-import com.google.android.gms.auth.*;
-import com.google.android.gms.common.*;
+import com.firebase.client.AuthData;
+import com.firebase.client.DataSnapshot;
+import com.firebase.client.Firebase;
+import com.firebase.client.FirebaseError;
+import com.firebase.client.ValueEventListener;
+import com.google.android.gms.auth.GooglePlayServicesAvailabilityException;
+import com.google.android.gms.auth.UserRecoverableAuthException;
+import com.google.android.gms.common.AccountPicker;
+import com.google.android.gms.common.GooglePlayServicesUtil;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.wearable.Node;
+import com.google.android.gms.wearable.NodeApi;
+import com.google.android.gms.wearable.Wearable;
 
-import java.util.*;
-
-import com.google.android.gms.common.api.*;
-import com.google.android.gms.wearable.*;
+import java.util.ArrayList;
+import java.util.Map;
 
 public class MobileMainActivity extends Activity implements GoogleApiClient.ConnectionCallbacks {
 
   TextView _emailTextView;
   ListView _projectsListView;
-  ArrayList<String> mProjects = new ArrayList<String>();
+  ArrayList<String> _projects = new ArrayList<String>();
   ArrayAdapter<String> _projectsAdapter;
 
   private GoogleApiClient _googleApiClient;
@@ -72,7 +87,7 @@ public class MobileMainActivity extends Activity implements GoogleApiClient.Conn
 
     _projectsAdapter = new ArrayAdapter<String>(this,
                                                 android.R.layout.simple_list_item_1,
-                                                mProjects);
+                                                _projects);
     _projectsListView.setAdapter(_projectsAdapter);
 
     getUsername();
@@ -181,11 +196,10 @@ public class MobileMainActivity extends Activity implements GoogleApiClient.Conn
     });
   }
 
-  void processProjectData(List<Object> projects) {
-    mProjects.clear();
-    for (Object p : projects) {
-      Map<String, Object> project = (Map<String, Object>) p;
-      mProjects.add((String) project.get(ProjectSchema.ID));
+  void processProjectData(Map<String, Object> projects) {
+    _projects.clear();
+    for (Map.Entry<String, Object> entry : projects.entrySet()) {
+              _projects.add(entry.getKey());
     }
     _projectsAdapter.notifyDataSetChanged();
   }
@@ -204,7 +218,7 @@ public class MobileMainActivity extends Activity implements GoogleApiClient.Conn
                 @Override
                 public void onDataChange(DataSnapshot dataSnapshot) {
                   Log.d("FIREBASE", dataSnapshot.toString());
-                  processProjectData((List<Object>) dataSnapshot.getValue());
+                  processProjectData((Map<String, Object>) dataSnapshot.getValue());
                 }
 
                 @Override
