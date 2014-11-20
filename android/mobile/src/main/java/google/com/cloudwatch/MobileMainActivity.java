@@ -6,19 +6,35 @@ package google.com.cloudwatch;
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
+import android.text.TextUtils;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 
+import com.firebase.client.DataSnapshot;
 import com.firebase.client.Firebase;
+import com.firebase.client.FirebaseError;
+import com.firebase.client.Query;
+import com.firebase.client.ValueEventListener;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.wearable.Node;
 import com.google.android.gms.wearable.NodeApi;
 import com.google.android.gms.wearable.Wearable;
 
+import java.util.ArrayList;
+import java.util.Map;
+
 public class MobileMainActivity extends Activity implements GoogleApiClient.ConnectionCallbacks {
+
+  static public final int CHOOSE_METRIC_REQUEST = 1000;
+  static public final String EXTRAS_PROJECT_ID = "projectId";
+  static public final String EXTRAS_METRIC_ID = "metricId";
+
+  Query _query;
+  ValueEventListener _listener;
 
   private GoogleApiClient _googleApiClient;
 
@@ -61,7 +77,7 @@ public class MobileMainActivity extends Activity implements GoogleApiClient.Conn
       @Override
       public void onClick(View v) {
         Intent intent = new Intent(MobileMainActivity.this, ProjectActivity.class);
-        startActivity(intent);
+        startActivityForResult(intent, CHOOSE_METRIC_REQUEST);
       }
     });
 
@@ -71,8 +87,6 @@ public class MobileMainActivity extends Activity implements GoogleApiClient.Conn
 
     Firebase.setAndroidContext(this);
   }
-
-
 
   @Override
   public boolean onCreateOptionsMenu(Menu menu) {
@@ -95,7 +109,64 @@ public class MobileMainActivity extends Activity implements GoogleApiClient.Conn
     return super.onOptionsItemSelected(item);
   }
 
+  @Override
+  protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+    if (requestCode == CHOOSE_METRIC_REQUEST && resultCode == Activity.RESULT_OK) {
+      final Bundle selection = data.getExtras();
+      final String projectId = selection.getString(EXTRAS_PROJECT_ID);
+      final String metricId = selection.getString(EXTRAS_METRIC_ID);
+      startListeningForMetric(projectId, metricId);
+    }
+  }
 
+  void onMetricChanges(Map<String, Object> metricValues) {
+    ArrayList<Entity> entities = new ArrayList<Entity>();
+    for (Map.Entry<String, Object> entry: metricValues.entrySet()) {
+      entities.add(new Entity(entry.getKey(), (Map<String, Object>) entry.getValue()));
+    }
+
+    final String message = createMeasurementsMessage(entities);
+    Log.d("DATA", message);
+  }
+
+  String createMeasurementsMessage(ArrayList<Entity> metricValues) {
+    final ArrayList<String> values = new ArrayList<String>();
+    for (Entity value: metricValues) {
+      values.add(serializeMetricValue(value));
+    }
+    return String.format("[%s]", TextUtils.join(",", values));
+  }
+
+  String serializeMetricValue(Entity metricValue) {
+    return String.format("{timestamp:%d, value:%f}",
+        ProjectSchema.getMetricTimestamp(metricValue.getValues()),
+        ProjectSchema.getMetricValue(metricValue.getValues()));
+  }
+
+  void startListeningForMetric(String projectId, String metricId) {
+    if (_listener != null) {
+      _query.removeEventListener(_listener);
+      _query = null;
+    }
+
+    if (_listener == null) {
+      _listener = new ValueEventListener() {
+        @Override
+        public void onDataChange(DataSnapshot dataSnapshot) {
+          onMetricChanges((Map<String, Object>) dataSnapshot.getValue());
+        }
+
+        @Override
+        public void onCancelled(FirebaseError firebaseError) {
+
+        }
+      };
+    }
+
+    Firebase ref = new Firebase(ProjectSchema.getMetricUrl(projectId, metricId));
+    _query = ref.orderByChild("timestamp").limitToLast(100);
+    _query.addValueEventListener(_listener);
+  }
 
   @Override
   protected void onDestroy() {

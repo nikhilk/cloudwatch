@@ -1,11 +1,13 @@
 package google.com.cloudwatch;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
+import android.widget.Button;
 import android.widget.ListView;
 
 import com.firebase.client.DataSnapshot;
@@ -31,6 +33,7 @@ public class ProjectActivity extends Activity {
   EntityAdapter _projectsAdapter;
 
   Entity _selectedProject;
+  Entity _selectedMetric;
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
@@ -51,6 +54,38 @@ public class ProjectActivity extends Activity {
       public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
         _selectedProject = _projects.get(position);
         populateMetricsForProject(_selectedProject);
+      }
+    });
+
+    _metricsListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+      @Override
+      public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+        Entity metric = _metricsPerProject.get(position);
+        _selectedMetric = metric;
+      }
+    });
+
+    final Button okButton = (Button) findViewById(R.id.ok_button);
+    final Button cancelButton = (Button) findViewById(R.id.cancel_button);
+
+    okButton.setOnClickListener(new View.OnClickListener() {
+      @Override
+      public void onClick(View v) {
+        Bundle resultData = new Bundle();
+        resultData.putString(MobileMainActivity.EXTRAS_METRIC_ID, _selectedMetric.getId());
+        resultData.putString(MobileMainActivity.EXTRAS_PROJECT_ID, _selectedProject.getId());
+        Intent result = new Intent();
+        result.putExtras(resultData);
+        setResult(Activity.RESULT_OK, result);
+        finish();
+      }
+    });
+
+    cancelButton.setOnClickListener(new View.OnClickListener() {
+      @Override
+      public void onClick(View v) {
+        setResult(Activity.RESULT_CANCELED);
+        finish();
       }
     });
 

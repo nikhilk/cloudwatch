@@ -20,6 +20,23 @@ public final class ProjectSchema {
     return (Map<String, Object>) project.get(METRICS);
   }
 
+  public static String getMetricUrl(String projectId, String metricId) {
+    return String.format("https://shining-fire-2617.firebaseio.com/data/%s/%s/",
+        projectId, metricId);
+  }
+
+
+
+
+
   private static final String METADATA_URL = "https://shining-fire-2617.firebaseio.com/metadata/";
   private static final String DATA_URL = "https://shining-fire-2617.firebaseio.com/data/";
+
+  public static long getMetricTimestamp(Map<String, Object> values) {
+    return ((Number) values.get("timestamp")).longValue();
+  }
+
+  public static double getMetricValue(Map<String, Object> values) {
+    return ((Number) values.get("value")).doubleValue();
+  }
 }
