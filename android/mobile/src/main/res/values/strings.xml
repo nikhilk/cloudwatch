@@ -1,7 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-  <string name="app_name">Cloud Watch</string>
-  <string name="send_button_text">Send</string>
-  <string name="action_settings">Settings</string>
-  <string name="pick_account">Pick an account.</string>
+
+    <string name="app_name">Cloud Watch</string>
+    <string name="send_button_text">Send</string>
+    <string name="action_settings">Settings</string>
+    <string name="pick_account">Pick an account.</string>
+    <string name="title_activity_project">ProjectActivity</string>
+    <string name="hello_world">Hello world!</string>
+    <string name="choose_project">Choose a project</string>
+    <string name="choose_metric">Choose Metric</string>
+  <string name="OK">OK</string>
+  <string name="cancel">Cancel</string>
+
 </resources>

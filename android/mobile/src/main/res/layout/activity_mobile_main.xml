@@ -21,15 +21,13 @@
       android:id="@+id/sendButton"
       android:layout_gravity="end" />
 
-  <TextView
+  <Button
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
-      android:text="..."
-      android:id="@+id/email_text"
-      android:layout_gravity="center_horizontal" />
+      android:text="@string/choose_metric"
+      android:id="@+id/chooseMetric"
+      android:layout_gravity="end" />
 
-  <ListView android:id="@+id/projects_list"
-      android:layout_width="wrap_content"
-      android:layout_height="430dp" />
+
 
 </LinearLayout>
