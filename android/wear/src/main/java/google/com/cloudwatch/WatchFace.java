@@ -5,6 +5,7 @@ package google.com.cloudwatch;
 
 import android.content.*;
 import android.graphics.*;
+import android.graphics.drawable.Drawable;
 import android.os.*;
 import android.support.v4.util.*;
 import android.text.format.*;
@@ -22,6 +23,10 @@ public class WatchFace extends View {
   private Paint _redPaint;
   private Paint _blackPaint;
   private Paint _whitePaint;
+  private Paint _whiteFill;
+  private Paint _textPaint;
+
+  private Drawable _logo;
 
   private CircularArray<Float> _values;
   private Random _valueGenerator;
@@ -29,10 +34,16 @@ public class WatchFace extends View {
   public WatchFace(Context context) {
     super(context);
 
+    _logo = context.getResources().getDrawable(R.drawable.cloud);
+
     _time = new Time(TimeZone.getDefault().getID());
     _message = "Cloud Watch";
     _values = new CircularArray<Float>(100);
     _valueGenerator = new Random();
+
+    for (int i = 0; i < 50; i++) {
+      _values.addLast(_valueGenerator.nextInt(40) - 20f);
+    }
 
     _backgroundPaint = new Paint();
     _backgroundPaint.setColor(0xff202020);
@@ -44,6 +55,20 @@ public class WatchFace extends View {
     _whitePaint.setStrokeCap(Paint.Cap.BUTT);
     _whitePaint.setStyle(Paint.Style.STROKE);
     _whitePaint.setColor(0xffffffff);
+    _whitePaint.setShadowLayer(4, 0, 0, 0xff0000ff);
+
+    _whiteFill = new Paint(Paint.ANTI_ALIAS_FLAG);
+    _whiteFill.setAntiAlias(true);
+    _whiteFill.setStyle(Paint.Style.FILL);
+    _whiteFill.setColor(0xffffffff);
+
+    _textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    _textPaint.setAntiAlias(true);
+    _textPaint.setStrokeWidth(1);
+    _textPaint.setStyle(Paint.Style.FILL);
+    _textPaint.setColor(0xffffffff);
+    _textPaint.setTextAlign(Paint.Align.CENTER);
+    _textPaint.setTextSize(10f);
 
     _blackPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     _blackPaint.setAntiAlias(true);
@@ -106,13 +131,10 @@ public class WatchFace extends View {
     super.onDraw(canvas);
 
     canvas.drawRect(0, 0, 320, 320, _backgroundPaint);
-    canvas.drawText(_message, 30, 160, _whitePaint);
 
-    // canvas.drawLine(0, 0, 320, 320, _paint);
-    canvas.drawArc(new RectF(10, 10, 310, 310), 135, 270, false, _redPaint);
-    // canvas.drawArc(new RectF(30, 30, 290, 290), 315, 90, false, _blackPaint);
-
-    canvas.drawCircle(160, 160, 140, _whitePaint);
+    canvas.drawCircle(160, 160, 35, _whiteFill);
+    _logo.setBounds(new Rect(130, 130, 190, 190));
+    _logo.draw(canvas);
 
     canvas.save(Canvas.MATRIX_SAVE_FLAG);
     for (int i = 0; i < 12; i++) {
@@ -120,6 +142,25 @@ public class WatchFace extends View {
       canvas.rotate(30f, 160f, 160f);
     }
     canvas.restore();
+    canvas.drawCircle(160, 160, 140, _whitePaint);
+
+    Path brandPath = new Path();
+    brandPath.addArc(new RectF(40, 40, 280, 280), -180, 180);
+    canvas.drawTextOnPath("Google Cloud Watch", brandPath, 0, 0, _textPaint);
+
+    Path path = new Path();
+    path.moveTo(75f, 240f);
+    for (int i = 0; i < _values.size(); i++) {
+      path.lineTo(i * 1.7f + 75, _values.get(i) + 240);
+    }
+    canvas.drawPath(path, _whitePaint);
+
+    Path textPath = new Path();
+    textPath.moveTo(75, 210);
+    textPath.lineTo(245, 210);
+    canvas.drawTextOnPath("Latency - 500ms", textPath, 0, 0, _textPaint);
+
+    canvas.drawArc(new RectF(10, 10, 310, 310), 135, 270, false, _redPaint);
 
     canvas.save(Canvas.MATRIX_SAVE_FLAG);
     canvas.rotate(30 * (_time.hour + _time.minute / 60f) - 90, 160, 160);
@@ -135,16 +176,6 @@ public class WatchFace extends View {
     canvas.rotate(6 * _time.second - 90, 160, 160);
     canvas.drawLine(160, 160, 250, 160, _whitePaint);
     canvas.restore();
-
-
-    Path path = new Path();
-    path.moveTo(75f, 220f);
-
-    for (int i = 0; i < _values.size(); i++) {
-      path.lineTo(i * 1.7f + 75, _values.get(i) + 220);
-    }
-
-    canvas.drawPath(path, _whitePaint);
   }
 
   public void updateMessage(String message) {
