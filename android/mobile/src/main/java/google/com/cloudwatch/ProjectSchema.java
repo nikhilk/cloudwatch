@@ -19,4 +19,7 @@ public final class ProjectSchema {
   public static Map<String, Object> getMetrics(Map<String, Object> project) {
     return (Map<String, Object>) project.get(METRICS);
   }
+
+  private static final String METADATA_URL = "https://shining-fire-2617.firebaseio.com/metadata/";
+  private static final String DATA_URL = "https://shining-fire-2617.firebaseio.com/data/";
 }

@@ -7,5 +7,9 @@
     <string name="pick_account">Pick an account.</string>
     <string name="title_activity_project">ProjectActivity</string>
     <string name="hello_world">Hello world!</string>
+    <string name="choose_project">Choose a project</string>
+    <string name="choose_metric">Choose Metric</string>
+  <string name="OK">OK</string>
+  <string name="cancel">Cancel</string>
 
 </resources>

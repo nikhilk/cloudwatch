@@ -1,52 +1,120 @@
 package google.com.cloudwatch;
 
 import android.app.Activity;
-import android.content.Intent;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.widget.ArrayAdapter;
+import android.view.View;
+import android.widget.AdapterView;
 import android.widget.ListView;
 
+import com.firebase.client.DataSnapshot;
+import com.firebase.client.Firebase;
+import com.firebase.client.FirebaseError;
+import com.firebase.client.ValueEventListener;
+
 import java.util.ArrayList;
+import java.util.Map;
 
 
 public class ProjectActivity extends Activity {
 
-  ListView _metricsList;
-  final ArrayList<String> _metricNames = new ArrayList<String>();
-  ArrayAdapter<String> _metricsAdapter;
+  Map<String, Object> _rootMetadata;
+
+  ListView _projectsListView;
+  ListView _metricsListView;
+
+  final ArrayList<Entity> _projects = new ArrayList<Entity>();
+  final ArrayList<Entity> _metricsPerProject = new ArrayList<Entity>();
+
+  EntityAdapter _metricsAdapter;
+  EntityAdapter _projectsAdapter;
+
+  Entity _selectedProject;
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.activity_project);
 
-    _metricsList = (ListView) findViewById(R.id.metrics_list);
+    _metricsListView = (ListView) findViewById(R.id.metrics_list);
+    _projectsListView = (ListView) findViewById(R.id.projects_list);
 
-    _metricsAdapter = new ArrayAdapter<String>(this,
-        android.R.layout.simple_list_item_1,
-        _metricNames);
-    _metricsList.setAdapter(_metricsAdapter);
+    _metricsAdapter = new EntityAdapter(this, _metricsPerProject);
+    _metricsListView.setAdapter(_metricsAdapter);
 
-    Intent intent = getIntent();
-    Bundle extras = intent.getExtras();
+    _projectsAdapter = new EntityAdapter(this, _projects);
+    _projectsListView.setAdapter(_projectsAdapter);
 
-    populateUI(extras);
+    _projectsListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+      @Override
+      public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+        _selectedProject = _projects.get(position);
+        populateMetricsForProject(_selectedProject);
+      }
+    });
+
+    loadProjects();
   }
 
-  private void populateUI(Bundle extras) {
-    setTitle(extras.getString(ProjectSchema.DISPLAY_NAME));
-    Bundle metrics = extras.getBundle(ProjectSchema.METRICS);
-    _metricNames.clear();
-    for (String key: metrics.keySet()) {
-      Bundle metric = metrics.getBundle(key);
-      String metricName = metric.getString(ProjectSchema.DISPLAY_NAME);
-      _metricNames.add(metricName);
+  private void loadProjects() {
+    final Firebase ref = new Firebase("https://shining-fire-2617.firebaseio.com/metadata/");
+    ref.addListenerForSingleValueEvent(new ValueEventListener() {
+      @Override
+      public void onDataChange(DataSnapshot dataSnapshot) {
+        updateMetadata((Map<String, Object>) dataSnapshot.getValue());
+      }
+
+      @Override
+      public void onCancelled(FirebaseError firebaseError) {
+
+      }
+    });
+  }
+
+  void populateMetricsForProject(Entity project) {
+    Map<String, Object> metrics = ProjectSchema.getMetrics(project.getValues());
+    _metricsPerProject.clear();
+    for (Map.Entry<String, Object> entry: metrics.entrySet()) {
+      Map<String, Object> metric = (Map<String, Object>) entry.getValue();
+      _metricsPerProject.add(new Entity(entry.getKey(), metric));
     }
     _metricsAdapter.notifyDataSetChanged();
   }
 
+  void updateMetadata(Map<String, Object> metadata) {
+    _rootMetadata = metadata;
+    _projects.clear();
+    _metricsPerProject.clear();
+    for (Map.Entry<String, Object> entry : metadata.entrySet()) {
+      Map<String, Object> project = (Map<String, Object>) entry.getValue();
+      _projects.add(new Entity(entry.getKey(), project));
+    }
+    _projectsAdapter.notifyDataSetChanged();
+    _metricsAdapter.notifyDataSetChanged();
+  }
+
+  private Bundle getBundleFromProject(Map<String, Object> project) {
+    Bundle result = new Bundle();
+    result.putString(ProjectSchema.DISPLAY_NAME, ProjectSchema.getDisplayName(project));
+    result.putBundle(ProjectSchema.METRICS, getBundleFromMetrics(ProjectSchema.getMetrics(project)));
+    return result;
+  }
+
+  private Bundle getBundleFromMetrics(Map<String, Object> metrics) {
+    Bundle result = new Bundle();
+    for (Map.Entry<String, Object> entry: metrics.entrySet()) {
+      Map<String, Object> metric = (Map<String, Object>) entry.getValue();
+      result.putBundle(entry.getKey(), getBundleFromMetric(metric));
+    }
+    return result;
+  }
+
+  private Bundle getBundleFromMetric(Map<String, Object> metric) {
+    Bundle result = new Bundle();
+    result.putString(ProjectSchema.DISPLAY_NAME, ProjectSchema.getDisplayName(metric));
+    return result;
+  }
 
   @Override
   public boolean onCreateOptionsMenu(Menu menu) {

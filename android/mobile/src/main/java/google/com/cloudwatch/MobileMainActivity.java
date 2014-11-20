@@ -9,30 +9,16 @@ import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ListView;
 
-import com.firebase.client.DataSnapshot;
 import com.firebase.client.Firebase;
-import com.firebase.client.FirebaseError;
-import com.firebase.client.ValueEventListener;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.wearable.Node;
 import com.google.android.gms.wearable.NodeApi;
 import com.google.android.gms.wearable.Wearable;
 
-import java.util.ArrayList;
-import java.util.Map;
-
 public class MobileMainActivity extends Activity implements GoogleApiClient.ConnectionCallbacks {
-
-  ListView _projectsListView;
-  final ArrayList<String> _projectNames = new ArrayList<String>();
-  ArrayList<Map<String, Object>> _projects = new ArrayList<Map<String, Object>>();
-  ArrayAdapter<String> _projectsListAdapter;
 
   private GoogleApiClient _googleApiClient;
 
@@ -70,54 +56,23 @@ public class MobileMainActivity extends Activity implements GoogleApiClient.Conn
       }
     });
 
+    final Button chooseMetricButton = (Button)findViewById(R.id.chooseMetric);
+    chooseMetricButton.setOnClickListener(new View.OnClickListener() {
+      @Override
+      public void onClick(View v) {
+        Intent intent = new Intent(MobileMainActivity.this, ProjectActivity.class);
+        startActivity(intent);
+      }
+    });
+
     GoogleApiClient.Builder apiClientBuilder = new GoogleApiClient.Builder(this);
     _googleApiClient = apiClientBuilder.addApi(Wearable.API).build();
     _googleApiClient.connect();
 
     Firebase.setAndroidContext(this);
-
-    _projectsListView = (ListView) findViewById(R.id.projects_list);
-
-    _projectsListAdapter = new ArrayAdapter<String>(this,
-        android.R.layout.simple_list_item_1,
-        _projectNames);
-    _projectsListView.setAdapter(_projectsListAdapter);
-
-    _projectsListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-      @Override
-      public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-        Map<String, Object> project = _projects.get(position);
-        Bundle projectBundle = getBundleFromProject(project);
-        Intent intent = new Intent(MobileMainActivity.this, ProjectActivity.class);
-        intent.putExtras(projectBundle);
-        startActivity(intent);
-      }
-    });
-
-    getProjects();
   }
 
-  private Bundle getBundleFromProject(Map<String, Object> project) {
-    Bundle result = new Bundle();
-    result.putString(ProjectSchema.DISPLAY_NAME, ProjectSchema.getDisplayName(project));
-    result.putBundle(ProjectSchema.METRICS, getBundleFromMetrics(ProjectSchema.getMetrics(project)));
-    return result;
-  }
 
-  private Bundle getBundleFromMetrics(Map<String, Object> metrics) {
-    Bundle result = new Bundle();
-    for (Map.Entry<String, Object> entry: metrics.entrySet()) {
-      Map<String, Object> metric = (Map<String, Object>) entry.getValue();
-      result.putBundle(entry.getKey(), getBundleFromMetric(metric));
-    }
-    return result;
-  }
-
-  private Bundle getBundleFromMetric(Map<String, Object> metric) {
-    Bundle result = new Bundle();
-    result.putString(ProjectSchema.DISPLAY_NAME, ProjectSchema.getDisplayName(metric));
-    return result;
-  }
 
   @Override
   public boolean onCreateOptionsMenu(Menu menu) {
@@ -140,31 +95,7 @@ public class MobileMainActivity extends Activity implements GoogleApiClient.Conn
     return super.onOptionsItemSelected(item);
   }
 
-  void processProjectData(Map<String, Object> projects) {
-    _projects.clear();
-    _projectNames.clear();
-    for (Map.Entry<String, Object> entry : projects.entrySet()) {
-      Map<String, Object> project = (Map<String, Object>) entry.getValue();
-      _projects.add(project);
-      _projectNames.add(ProjectSchema.getDisplayName(project));
-    }
-    _projectsListAdapter.notifyDataSetChanged();
-  }
 
-  void getProjects() {
-    final Firebase ref = new Firebase("https://shining-fire-2617.firebaseio.com/metadata/");
-    ref.addValueEventListener(new ValueEventListener() {
-      @Override
-      public void onDataChange(DataSnapshot dataSnapshot) {
-        processProjectData((Map<String, Object>) dataSnapshot.getValue());
-      }
-
-      @Override
-      public void onCancelled(FirebaseError firebaseError) {
-
-      }
-    });
-  }
 
   @Override
   protected void onDestroy() {

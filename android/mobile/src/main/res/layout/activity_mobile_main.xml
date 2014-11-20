@@ -21,8 +21,30 @@
       android:id="@+id/sendButton"
       android:layout_gravity="end" />
 
-  <ListView android:id="@+id/projects_list"
+  <Button
       android:layout_width="wrap_content"
-      android:layout_height="430dp" />
+      android:layout_height="wrap_content"
+      android:text="@string/choose_metric"
+      android:id="@+id/chooseMetric"
+      android:layout_gravity="end" />
+
+    <LinearLayout
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_gravity="bottom"
+      android:orientation="horizontal">
+      <Button
+        android:text="@string/OK"
+        android:layout_gravity="left"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
+
+      <Button
+          android:text="@string/cancel"
+          android:layout_gravity="right"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content" />
+
+    </LinearLayout>
 
 </LinearLayout>
