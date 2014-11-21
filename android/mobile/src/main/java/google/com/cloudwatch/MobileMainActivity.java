@@ -6,13 +6,11 @@ package google.com.cloudwatch;
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
-import android.os.Message;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.TextView;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -117,6 +115,9 @@ public class MobileMainActivity extends Activity implements GoogleApiClient.Conn
 
   void processNewChild(Map<String, Object> metricValue) {
     double value = ProjectSchema.getMetricValue(metricValue);
+    if (_values.size() >= 100) {
+      _values.remove(0);
+    }
     _values.add(value);
     onMetricChanges();
   }
