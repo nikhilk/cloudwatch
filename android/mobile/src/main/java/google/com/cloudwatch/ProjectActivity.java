@@ -3,6 +3,7 @@ package google.com.cloudwatch;
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -10,6 +11,8 @@ import android.widget.AdapterView;
 import android.widget.Button;
 import android.widget.ListView;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.firebase.client.DataSnapshot;
 import com.firebase.client.Firebase;
 import com.firebase.client.FirebaseError;
@@ -20,6 +23,13 @@ import java.util.Map;
 
 
 public class ProjectActivity extends Activity {
+
+  static public final int CHOOSE_METRIC_REQUEST = 1000;
+  static public final String EXTRAS_PROJECT_ID = "projectId";
+  static public final String EXTRAS_METRIC_ID = "metricId";
+  static public final String EXTRAS_METRIC_METADATA = "metricMetadata";
+
+  final ObjectMapper _mapper = new ObjectMapper();
 
   Map<String, Object> _rootMetadata;
 
@@ -45,15 +55,18 @@ public class ProjectActivity extends Activity {
 
     _metricsAdapter = new EntityAdapter(this, _metricsPerProject);
     _metricsListView.setAdapter(_metricsAdapter);
+    _metricsListView.setChoiceMode(ListView.CHOICE_MODE_SINGLE);
 
     _projectsAdapter = new EntityAdapter(this, _projects);
     _projectsListView.setAdapter(_projectsAdapter);
+    _projectsListView.setChoiceMode(ListView.CHOICE_MODE_SINGLE);
 
     _projectsListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
       @Override
       public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
         _selectedProject = _projects.get(position);
         populateMetricsForProject(_selectedProject);
+        _projectsAdapter.setSelectedRow(position);
       }
     });
 
@@ -62,6 +75,7 @@ public class ProjectActivity extends Activity {
       public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
         Entity metric = _metricsPerProject.get(position);
         _selectedMetric = metric;
+        _metricsAdapter.setSelectedRow(position);
       }
     });
 
@@ -72,8 +86,14 @@ public class ProjectActivity extends Activity {
       @Override
       public void onClick(View v) {
         Bundle resultData = new Bundle();
-        resultData.putString(MobileMainActivity.EXTRAS_METRIC_ID, _selectedMetric.getId());
-        resultData.putString(MobileMainActivity.EXTRAS_PROJECT_ID, _selectedProject.getId());
+        resultData.putString(EXTRAS_METRIC_ID, _selectedMetric.getId());
+        resultData.putString(EXTRAS_PROJECT_ID, _selectedProject.getId());
+        try {
+          resultData.putString(EXTRAS_METRIC_METADATA,
+              _mapper.writeValueAsString(_selectedMetric.getValues()));
+        } catch (JsonProcessingException e) {
+          Log.e("DATA", "Failed to serialize", e);
+        }
         Intent result = new Intent();
         result.putExtras(resultData);
         setResult(Activity.RESULT_OK, result);

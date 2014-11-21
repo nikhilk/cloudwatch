@@ -6,14 +6,16 @@ package google.com.cloudwatch;
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
-import android.text.TextUtils;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.TextView;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.firebase.client.DataSnapshot;
 import com.firebase.client.Firebase;
 import com.firebase.client.FirebaseError;
@@ -24,17 +26,18 @@ import com.google.android.gms.wearable.Node;
 import com.google.android.gms.wearable.NodeApi;
 import com.google.android.gms.wearable.Wearable;
 
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
 
 public class MobileMainActivity extends Activity implements GoogleApiClient.ConnectionCallbacks {
 
-  static public final int CHOOSE_METRIC_REQUEST = 1000;
-  static public final String EXTRAS_PROJECT_ID = "projectId";
-  static public final String EXTRAS_METRIC_ID = "metricId";
-
   Query _query;
   ValueEventListener _listener;
+  final ObjectMapper _mapper = new ObjectMapper();
+  Entity _selectedMetric;
+  TextView _selectedMetricTextView;
 
   private GoogleApiClient _googleApiClient;
 
@@ -54,6 +57,8 @@ public class MobileMainActivity extends Activity implements GoogleApiClient.Conn
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.activity_mobile_main);
+
+    _selectedMetricTextView = (TextView) findViewById(R.id.chosen_metric);
 
     final Button sendButton = (Button)findViewById(R.id.sendButton);
     final EditText messageText = (EditText)findViewById(R.id.messageText);
@@ -77,7 +82,7 @@ public class MobileMainActivity extends Activity implements GoogleApiClient.Conn
       @Override
       public void onClick(View v) {
         Intent intent = new Intent(MobileMainActivity.this, ProjectActivity.class);
-        startActivityForResult(intent, CHOOSE_METRIC_REQUEST);
+        startActivityForResult(intent, ProjectActivity.CHOOSE_METRIC_REQUEST);
       }
     });
 
@@ -111,36 +116,42 @@ public class MobileMainActivity extends Activity implements GoogleApiClient.Conn
 
   @Override
   protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-    if (requestCode == CHOOSE_METRIC_REQUEST && resultCode == Activity.RESULT_OK) {
+    if (requestCode == ProjectActivity.CHOOSE_METRIC_REQUEST && resultCode == Activity.RESULT_OK) {
       final Bundle selection = data.getExtras();
-      final String projectId = selection.getString(EXTRAS_PROJECT_ID);
-      final String metricId = selection.getString(EXTRAS_METRIC_ID);
+      final String projectId = selection.getString(ProjectActivity.EXTRAS_PROJECT_ID);
+      final String metricId = selection.getString(ProjectActivity.EXTRAS_METRIC_ID);
+      final String metricMetadata = selection.getString(ProjectActivity.EXTRAS_METRIC_METADATA);
+      try {
+        _selectedMetric = new Entity(metricId, _mapper.readValue(metricMetadata, Map.class));
+        _selectedMetricTextView.setText(ProjectSchema.getDisplayName(_selectedMetric.getValues()));
+      } catch (IOException e) {
+        Log.e("DATA", "Failed to deserialize metadata", e);
+      }
       startListeningForMetric(projectId, metricId);
     }
   }
 
   void onMetricChanges(Map<String, Object> metricValues) {
-    ArrayList<Entity> entities = new ArrayList<Entity>();
+    ArrayList<Map<String, Object>> data = new ArrayList<Map<String, Object>>();
     for (Map.Entry<String, Object> entry: metricValues.entrySet()) {
-      entities.add(new Entity(entry.getKey(), (Map<String, Object>) entry.getValue()));
+      data.add((Map<String, Object>) entry.getValue());
     }
 
-    final String message = createMeasurementsMessage(entities);
-    Log.d("DATA", message);
-  }
+    Map<String, Object> metric = new HashMap<String, Object>(_selectedMetric.getValues());
+    metric.put("data", data);
 
-  String createMeasurementsMessage(ArrayList<Entity> metricValues) {
-    final ArrayList<String> values = new ArrayList<String>();
-    for (Entity value: metricValues) {
-      values.add(serializeMetricValue(value));
+    final String message;
+    try {
+      message = _mapper.writeValueAsString(metric);
+      Log.d("DATA", message);
+      sendMetricsMessage(message);
+    } catch (JsonProcessingException e) {
+      Log.e("DATA", "Failed to serialize", e);
     }
-    return String.format("[%s]", TextUtils.join(",", values));
   }
 
-  String serializeMetricValue(Entity metricValue) {
-    return String.format("{timestamp:%d, value:%f}",
-        ProjectSchema.getMetricTimestamp(metricValue.getValues()),
-        ProjectSchema.getMetricValue(metricValue.getValues()));
+  void sendMetricsMessage(String message) {
+    sendMessage("/message", message);
   }
 
   void startListeningForMetric(String projectId, String metricId) {
