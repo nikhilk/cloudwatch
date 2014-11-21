@@ -17,11 +17,11 @@ import android.widget.TextView;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.firebase.client.ChildEventListener;
 import com.firebase.client.DataSnapshot;
 import com.firebase.client.Firebase;
 import com.firebase.client.FirebaseError;
 import com.firebase.client.Query;
-import com.firebase.client.ValueEventListener;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.wearable.Node;
 import com.google.android.gms.wearable.NodeApi;
@@ -35,10 +35,11 @@ import java.util.Map;
 public class MobileMainActivity extends Activity implements GoogleApiClient.ConnectionCallbacks {
 
   Query _query;
-  ValueEventListener _listener;
+  ChildEventListener _listener;
   final ObjectMapper _mapper = new ObjectMapper();
   Entity _selectedMetric;
   TextView _selectedMetricTextView;
+  final ArrayList<Double> _values = new ArrayList<Double>(100);
 
   private GoogleApiClient _googleApiClient;
 
@@ -114,15 +115,15 @@ public class MobileMainActivity extends Activity implements GoogleApiClient.Conn
     }
   }
 
-  void onMetricChanges(Map<String, Object> metricValues) {
-    ArrayList<Object> data = new ArrayList<Object>();
-    for (Map.Entry<String, Object> entry: metricValues.entrySet()) {
-      Map<String, Object> timestampValue = (Map<String, Object>)entry.getValue();
-      data.add(timestampValue.get("value"));
-    }
+  void processNewChild(Map<String, Object> metricValue) {
+    double value = ProjectSchema.getMetricValue(metricValue);
+    _values.add(value);
+    onMetricChanges();
+  }
 
+  void onMetricChanges() {
     Map<String, Object> metric = new HashMap<String, Object>(_selectedMetric.getValues());
-    metric.put("data", data);
+    metric.put("data", _values);
 
     try {
       String messageData = _mapper.writeValueAsString(metric);
@@ -137,13 +138,29 @@ public class MobileMainActivity extends Activity implements GoogleApiClient.Conn
     if (_listener != null) {
       _query.removeEventListener(_listener);
       _query = null;
+      _values.clear();
     }
 
     if (_listener == null) {
-      _listener = new ValueEventListener() {
+      _listener = new ChildEventListener() {
         @Override
-        public void onDataChange(DataSnapshot dataSnapshot) {
-          onMetricChanges((Map<String, Object>) dataSnapshot.getValue());
+        public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+          processNewChild((Map<String, Object>) dataSnapshot.getValue());
+        }
+
+        @Override
+        public void onChildChanged(DataSnapshot dataSnapshot, String s) {
+
+        }
+
+        @Override
+        public void onChildRemoved(DataSnapshot dataSnapshot) {
+
+        }
+
+        @Override
+        public void onChildMoved(DataSnapshot dataSnapshot, String s) {
+
         }
 
         @Override
@@ -155,7 +172,7 @@ public class MobileMainActivity extends Activity implements GoogleApiClient.Conn
 
     Firebase ref = new Firebase(ProjectSchema.getMetricUrl(projectId, metricId));
     _query = ref.orderByChild("timestamp").limitToLast(100);
-    _query.addValueEventListener(_listener);
+    _query.addChildEventListener(_listener);
   }
 
   @Override
