@@ -6,6 +6,7 @@ package google.com.cloudwatch;
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Message;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -46,7 +47,6 @@ public class MobileMainActivity extends Activity implements GoogleApiClient.Conn
 
   @Override
   public void onConnected(Bundle bundle) {
-    sendMessage("/start_activity", "");
   }
 
   @Override
@@ -59,23 +59,6 @@ public class MobileMainActivity extends Activity implements GoogleApiClient.Conn
     setContentView(R.layout.activity_mobile_main);
 
     _selectedMetricTextView = (TextView) findViewById(R.id.chosen_metric);
-
-    final Button sendButton = (Button)findViewById(R.id.sendButton);
-    final EditText messageText = (EditText)findViewById(R.id.messageText);
-    sendButton.setOnClickListener(new View.OnClickListener() {
-      @Override
-      public void onClick(View view) {
-        String text = messageText.getText().toString();
-
-        if (!text.isEmpty()) {
-          messageText.setText("");
-
-          String json = "{\"timestamp\": %d, \"value\": %d}";
-          String data = String.format(json, System.currentTimeMillis(), 123);
-          sendMessage("/message", data);
-        }
-      }
-    });
 
     final Button chooseMetricButton = (Button)findViewById(R.id.chooseMetric);
     chooseMetricButton.setOnClickListener(new View.OnClickListener() {
@@ -132,26 +115,22 @@ public class MobileMainActivity extends Activity implements GoogleApiClient.Conn
   }
 
   void onMetricChanges(Map<String, Object> metricValues) {
-    ArrayList<Map<String, Object>> data = new ArrayList<Map<String, Object>>();
+    ArrayList<Object> data = new ArrayList<Object>();
     for (Map.Entry<String, Object> entry: metricValues.entrySet()) {
-      data.add((Map<String, Object>) entry.getValue());
+      Map<String, Object> timestampValue = (Map<String, Object>)entry.getValue();
+      data.add(timestampValue.get("value"));
     }
 
     Map<String, Object> metric = new HashMap<String, Object>(_selectedMetric.getValues());
     metric.put("data", data);
 
-    final String message;
     try {
-      message = _mapper.writeValueAsString(metric);
-      Log.d("DATA", message);
-      sendMetricsMessage(message);
+      String messageData = _mapper.writeValueAsString(metric);
+      Log.d("DATA", messageData);
+      MessageSender.sendData(_googleApiClient, messageData);
     } catch (JsonProcessingException e) {
       Log.e("DATA", "Failed to serialize", e);
     }
-  }
-
-  void sendMetricsMessage(String message) {
-    sendMessage("/message", message);
   }
 
   void startListeningForMetric(String projectId, String metricId) {
@@ -185,28 +164,29 @@ public class MobileMainActivity extends Activity implements GoogleApiClient.Conn
     super.onDestroy();
   }
 
-  private void sendMessage(String path, String text) {
-    MessageSender sender = new MessageSender(path, text);
-    new Thread(sender).start();
-  }
 
-  private final class MessageSender implements Runnable {
+  private static final class MessageSender implements Runnable {
 
-    private final String _path;
+    private final GoogleApiClient _apiClient;
     private final byte[] _data;
 
-    public MessageSender(String path, String message) {
-      _path = path;
+    public MessageSender(GoogleApiClient apiClient, String message) {
+      _apiClient = apiClient;
       _data = message.getBytes();
     }
 
     @Override
     public void run() {
       NodeApi.GetConnectedNodesResult nodes =
-          Wearable.NodeApi.getConnectedNodes(_googleApiClient).await();
+          Wearable.NodeApi.getConnectedNodes(_apiClient).await();
       for (Node node : nodes.getNodes()) {
-        Wearable.MessageApi.sendMessage(_googleApiClient, node.getId(), _path, _data).await();
+        Wearable.MessageApi.sendMessage(_apiClient, node.getId(), "/data", _data).await();
       }
+    }
+
+    public static void sendData(GoogleApiClient apiClient, String data) {
+      MessageSender sender = new MessageSender(apiClient, data);
+      new Thread(sender).start();
     }
   }
 }
