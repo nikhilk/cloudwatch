@@ -14,6 +14,11 @@ public class Entity {
     _values= values;
   }
 
+  @Override
+  public String toString() {
+    return ProjectSchema.getDisplayName(_values);
+  }
+
   String getId() {
     return _id;
   }

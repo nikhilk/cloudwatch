@@ -1,6 +1,7 @@
 package google.com.cloudwatch;
 
 import android.app.Activity;
+import android.app.ProgressDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
@@ -9,7 +10,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.Button;
-import android.widget.ListView;
+import android.widget.Spinner;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -33,8 +34,8 @@ public class ProjectActivity extends Activity {
 
   Map<String, Object> _rootMetadata;
 
-  ListView _projectsListView;
-  ListView _metricsListView;
+  Spinner _projectsSpinner;
+  Spinner _metricsSpinner;
 
   final ArrayList<Entity> _projects = new ArrayList<Entity>();
   final ArrayList<Entity> _metricsPerProject = new ArrayList<Entity>();
@@ -45,37 +46,48 @@ public class ProjectActivity extends Activity {
   Entity _selectedProject;
   Entity _selectedMetric;
 
+  ProgressDialog _progressDialog;
+
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.activity_project);
 
-    _metricsListView = (ListView) findViewById(R.id.metrics_list);
-    _projectsListView = (ListView) findViewById(R.id.projects_list);
+    _metricsSpinner = (Spinner) findViewById(R.id.metrics_list);
+    _projectsSpinner = (Spinner) findViewById(R.id.projects_list);
+
+    _metricsSpinner.setEnabled(false);
+    _projectsSpinner.setEnabled(false);
 
     _metricsAdapter = new EntityAdapter(this, _metricsPerProject);
-    _metricsListView.setAdapter(_metricsAdapter);
-    _metricsListView.setChoiceMode(ListView.CHOICE_MODE_SINGLE);
+    _metricsSpinner.setAdapter(_metricsAdapter);
 
     _projectsAdapter = new EntityAdapter(this, _projects);
-    _projectsListView.setAdapter(_projectsAdapter);
-    _projectsListView.setChoiceMode(ListView.CHOICE_MODE_SINGLE);
+    _projectsSpinner.setAdapter(_projectsAdapter);
 
-    _projectsListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+    _projectsSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
       @Override
-      public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+      public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
         _selectedProject = _projects.get(position);
         populateMetricsForProject(_selectedProject);
-        _projectsAdapter.setSelectedRow(position);
+      }
+
+      @Override
+      public void onNothingSelected(AdapterView<?> parent) {
+
       }
     });
 
-    _metricsListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+    _metricsSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
       @Override
-      public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+      public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
         Entity metric = _metricsPerProject.get(position);
         _selectedMetric = metric;
-        _metricsAdapter.setSelectedRow(position);
+      }
+
+      @Override
+      public void onNothingSelected(AdapterView<?> parent) {
+
       }
     });
 
@@ -113,10 +125,18 @@ public class ProjectActivity extends Activity {
   }
 
   private void loadProjects() {
+    _progressDialog = new ProgressDialog(this);
+    _progressDialog.setMessage("Loading projects...");
+    _progressDialog.setCanceledOnTouchOutside(false);
+    _progressDialog.setCancelable(false);
+    _progressDialog.show();
+
     final Firebase ref = new Firebase("https://shining-fire-2617.firebaseio.com/metadata/");
     ref.addListenerForSingleValueEvent(new ValueEventListener() {
       @Override
       public void onDataChange(DataSnapshot dataSnapshot) {
+        _progressDialog.dismiss();
+        _progressDialog = null;
         updateMetadata((Map<String, Object>) dataSnapshot.getValue());
       }
 
@@ -147,6 +167,9 @@ public class ProjectActivity extends Activity {
     }
     _projectsAdapter.notifyDataSetChanged();
     _metricsAdapter.notifyDataSetChanged();
+
+    _projectsSpinner.setEnabled(true);
+    _metricsSpinner.setEnabled(true);
   }
 
   private Bundle getBundleFromProject(Map<String, Object> project) {

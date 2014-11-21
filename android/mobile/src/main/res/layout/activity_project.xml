@@ -14,7 +14,7 @@
         android:layout_marginBottom="10px"
         />
 
-    <ListView android:id="@+id/projects_list"
+    <Spinner android:id="@+id/projects_list"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content" />
 
@@ -24,7 +24,7 @@
         android:text="@string/choose_metric"
         android:layout_marginBottom="10px"/>
 
-    <ListView android:id="@+id/metrics_list"
+    <Spinner android:id="@+id/metrics_list"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content" />
 
