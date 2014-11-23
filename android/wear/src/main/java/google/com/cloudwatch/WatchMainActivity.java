@@ -66,10 +66,9 @@ public final class WatchMainActivity extends Activity
       public void run() {
         try {
           String json = new String(messageEvent.getData());
-          Map<String, Object> data = JSON.std.mapFrom(json);
 
-          String newText = data.get("timestamp") + ":" + data.get("value");
-          _watchFace.updateMessage(newText);
+          Map<String, Object> data = JSON.std.mapFrom(json);
+          _watchFace.updateMetrics(data);
         }
         catch (IOException e) {
           e.printStackTrace();
