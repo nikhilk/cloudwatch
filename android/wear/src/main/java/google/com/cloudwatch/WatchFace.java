@@ -63,7 +63,7 @@ public final class WatchFace extends View {
 
     _metricName = "Latency";
     _metricUnit = "ms";
-    _metricMaxValue = 30;
+    _metricMaxValue = 35;
     _values = new CircularArray<Float>(100);
     _valueGenerator = new Random();
 
@@ -349,16 +349,21 @@ public final class WatchFace extends View {
     float y = 0;
     for (int i = 0; i < _values.size(); i++) {
       x = i * 1.7f;
-      y = 40 - _values.get(i) * 40f / (_metricMaxValue * 2);
+      y = 60 - _values.get(i) * 60f / (_metricMaxValue * 2);
       if (y < 0f) {
         y = 0f;
       }
 
-      _timeSeriesPath.lineTo(x, y);
+      if (i == 0) {
+        _timeSeriesPath.moveTo(x, y);
+      }
+      else {
+        _timeSeriesPath.lineTo(x, y);
+      }
     }
 
     canvas.save(Canvas.MATRIX_SAVE_FLAG);
-    canvas.translate(75, 220);
+    canvas.translate(75, 200);
     canvas.drawPath(_timeSeriesPath, _timeSeriesPaint);
     canvas.drawCircle(x, y, 1.25f, _currentValuePaint);
     canvas.restore();
