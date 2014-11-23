@@ -14,7 +14,7 @@ import android.view.*;
 import java.text.*;
 import java.util.*;
 
-public class WatchFace extends View {
+public final class WatchFace extends View {
 
   private Calendar _calendar;
   private Time _time;
@@ -23,22 +23,33 @@ public class WatchFace extends View {
 
   private Bitmap _background;
   private Paint _backgroundPaint;
-  private Paint _headingTextPaint;
-  private Paint _valueTextPaint;
-
-  private Path _metricHeadingPath;
-  private Path _metricValuePath;
-
-  private Path _dateHeadingPath;
-  private Path _dateValuePath;
 
   private Paint _hourHandPaint;
   private Paint _minuteHandPaint;
   private Paint _secondHandPaint;
 
+  private Paint _dayNamePaint;
+  private Paint _datePaint;
+  private Path _dateHeadingPath;
+  private Path _dateValuePath;
+
+  private Paint _metricNamePaint;
+  private Paint _metricValuePaint;
+  private Path _metricHeadingPath;
+  private Path _metricValuePath;
+
   private Paint _timeSeriesPaint;
   private Paint _currentValuePaint;
+  private Path _timeSeriesPath;
 
+  private RectF _metricArcBounds;
+  private Paint _metricOKPaint;
+  private Paint _metricWarningPaint;
+  private Paint _metricErrorPaint;
+
+  private String _metricName;
+  private String _metricUnit;
+  private float _metricMaxValue;
   private CircularArray<Float> _values;
   private Random _valueGenerator;
 
@@ -50,105 +61,18 @@ public class WatchFace extends View {
     _dayFormat = new SimpleDateFormat("cccc");
     _dateFormat = new SimpleDateFormat("MMM d");
 
+    _metricName = "Latency";
+    _metricUnit = "ms";
+    _metricMaxValue = 30;
     _values = new CircularArray<Float>(100);
     _valueGenerator = new Random();
 
     for (int i = 0; i < 50; i++) {
-      _values.addLast(_valueGenerator.nextInt(40) - 20f);
+      _values.addLast(generateMetricValue());
     }
 
-    _headingTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    _headingTextPaint.setAntiAlias(true);
-    _headingTextPaint.setStrokeWidth(1);
-    _headingTextPaint.setStyle(Paint.Style.FILL);
-    _headingTextPaint.setColor(0x80ffffff);
-    _headingTextPaint.setTextAlign(Paint.Align.CENTER);
-    _headingTextPaint.setTextSize(12f);
-    _headingTextPaint.setFakeBoldText(true);
-
-    _valueTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    _valueTextPaint.setAntiAlias(true);
-    _valueTextPaint.setStrokeWidth(1);
-    _valueTextPaint.setStyle(Paint.Style.FILL);
-    _valueTextPaint.setColor(0xffffffff);
-    _valueTextPaint.setTextAlign(Paint.Align.CENTER);
-    _valueTextPaint.setTextSize(14f);
-    _valueTextPaint.setFakeBoldText(true);
-
-    _background = createBackground(context);
-    _backgroundPaint = new Paint();
-    _backgroundPaint.setFilterBitmap(true);
-
-    _metricHeadingPath = new Path();
-    _metricHeadingPath.moveTo(50, 110);
-    _metricHeadingPath.lineTo(150, 110);
-
-    _metricValuePath = new Path();
-    _metricValuePath.moveTo(50, 130);
-    _metricValuePath.lineTo(150, 130);
-
-    _dateHeadingPath = new Path();
-    _dateHeadingPath.moveTo(170, 110);
-    _dateHeadingPath.lineTo(270, 110);
-
-    _dateValuePath = new Path();
-    _dateValuePath.moveTo(170, 130);
-    _dateValuePath.lineTo(270, 130);
-
-    _hourHandPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    _hourHandPaint.setAntiAlias(true);
-    _hourHandPaint.setStrokeWidth(3);
-    _hourHandPaint.setStrokeCap(Paint.Cap.SQUARE);
-    _hourHandPaint.setStyle(Paint.Style.FILL_AND_STROKE);
-    _hourHandPaint.setColor(0xffffffff);
-    _hourHandPaint.setShadowLayer(4, 0, 0, 0xff000000);
-
-    _minuteHandPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    _minuteHandPaint.setAntiAlias(true);
-    _minuteHandPaint.setStrokeWidth(2);
-    _minuteHandPaint.setStrokeCap(Paint.Cap.SQUARE);
-    _minuteHandPaint.setStyle(Paint.Style.FILL_AND_STROKE);
-    _minuteHandPaint.setColor(0xffffffff);
-    _minuteHandPaint.setShadowLayer(4, 0, 0, 0xff000000);
-
-    _secondHandPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    _secondHandPaint.setAntiAlias(true);
-    _secondHandPaint.setStrokeWidth(2);
-    _secondHandPaint.setStrokeCap(Paint.Cap.SQUARE);
-    _secondHandPaint.setStyle(Paint.Style.FILL_AND_STROKE);
-    _secondHandPaint.setColor(0xff808080);
-    _secondHandPaint.setShadowLayer(4, 0, 0, 0xff000000);
-
-    _timeSeriesPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    _timeSeriesPaint.setAntiAlias(true);
-    _timeSeriesPaint.setStrokeWidth(1);
-    _timeSeriesPaint.setStrokeCap(Paint.Cap.ROUND);
-    _timeSeriesPaint.setStyle(Paint.Style.STROKE);
-    _timeSeriesPaint.setColor(0xb0ffffff);
-
-    _currentValuePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    _currentValuePaint.setAntiAlias(true);
-    _currentValuePaint.setStrokeWidth(1);
-    _currentValuePaint.setStrokeCap(Paint.Cap.ROUND);
-    _currentValuePaint.setStyle(Paint.Style.FILL_AND_STROKE);
-    _currentValuePaint.setColor(0xffffffff);
-
-    final Handler h = new Handler() {
-      @Override
-      public void handleMessage(Message msg) {
-        updateTime();
-      }
-    };
-
-    Timer timer = new Timer();
-    timer.scheduleAtFixedRate(new TimerTask()
-    {
-      @Override
-      public void run()
-      {
-        h.sendEmptyMessage(0);
-      }
-    }, 0, 1000);
+    createDrawingObjects(context);
+    createTimer();
   }
 
   private Bitmap createBackground(Context context) {
@@ -208,6 +132,14 @@ public class WatchFace extends View {
     smallTickPaint.setStyle(Paint.Style.FILL_AND_STROKE);
     smallTickPaint.setColor(0xffffffff);
 
+    Paint metricPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    metricPaint.setAntiAlias(true);
+    metricPaint.setStrokeWidth(7);
+    metricPaint.setStrokeCap(Paint.Cap.BUTT);
+    metricPaint.setStyle(Paint.Style.STROKE);
+    metricPaint.setColor(0xff4d4848);
+    metricPaint.setShadowLayer(4, 0, 0, 0xff484848);
+
     // Background
     canvas.drawRect(0, 0, 320, 320, backgroundPaint);
 
@@ -237,71 +169,242 @@ public class WatchFace extends View {
     }
     canvas.restore();
 
+    // Center dot
     canvas.drawCircle(160, 160, 2f, smallTickPaint);
 
-    /*
-    // Metric arc
+    // Metric ring
     canvas.save(Canvas.MATRIX_SAVE_FLAG);
     canvas.rotate(135, 160, 160);
-    canvas.drawArc(new RectF(8, 8, 312, 312), 0, 270, false, blackStroke);
+    canvas.drawArc(_metricArcBounds, 0, 270, false, metricPaint);
     canvas.restore();
-    */
 
     return bitmap;
   }
 
-  @Override
-  protected void onAttachedToWindow() {
-    super.onAttachedToWindow();
+  private void createDrawingObjects(Context context) {
+    _metricHeadingPath = new Path();
+    _metricHeadingPath.moveTo(55, 110);
+    _metricHeadingPath.lineTo(160, 110);
+
+    _metricValuePath = new Path();
+    _metricValuePath.moveTo(55, 130);
+    _metricValuePath.lineTo(160, 130);
+
+    _dateHeadingPath = new Path();
+    _dateHeadingPath.moveTo(160, 110);
+    _dateHeadingPath.lineTo(265, 110);
+
+    _dateValuePath = new Path();
+    _dateValuePath.moveTo(160, 130);
+    _dateValuePath.lineTo(265, 130);
+
+    _hourHandPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    _hourHandPaint.setAntiAlias(true);
+    _hourHandPaint.setStrokeWidth(3);
+    _hourHandPaint.setStrokeCap(Paint.Cap.SQUARE);
+    _hourHandPaint.setStyle(Paint.Style.FILL_AND_STROKE);
+    _hourHandPaint.setColor(0xffffffff);
+    _hourHandPaint.setShadowLayer(4, 0, 0, 0xff000000);
+
+    _minuteHandPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    _minuteHandPaint.setAntiAlias(true);
+    _minuteHandPaint.setStrokeWidth(2);
+    _minuteHandPaint.setStrokeCap(Paint.Cap.SQUARE);
+    _minuteHandPaint.setStyle(Paint.Style.FILL_AND_STROKE);
+    _minuteHandPaint.setColor(0xffffffff);
+    _minuteHandPaint.setShadowLayer(4, 0, 0, 0xff000000);
+
+    _secondHandPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    _secondHandPaint.setAntiAlias(true);
+    _secondHandPaint.setStrokeWidth(2);
+    _secondHandPaint.setStrokeCap(Paint.Cap.SQUARE);
+    _secondHandPaint.setStyle(Paint.Style.FILL_AND_STROKE);
+    _secondHandPaint.setColor(0xff808080);
+    _secondHandPaint.setShadowLayer(4, 0, 0, 0xff000000);
+
+    _metricNamePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    _metricNamePaint.setAntiAlias(true);
+    _metricNamePaint.setStrokeWidth(1);
+    _metricNamePaint.setStyle(Paint.Style.FILL);
+    _metricNamePaint.setColor(0x80ffffff);
+    _metricNamePaint.setTextAlign(Paint.Align.LEFT);
+    _metricNamePaint.setTextSize(12f);
+    _metricNamePaint.setFakeBoldText(true);
+
+    _metricValuePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    _metricValuePaint.setAntiAlias(true);
+    _metricValuePaint.setStrokeWidth(1);
+    _metricValuePaint.setStyle(Paint.Style.FILL);
+    _metricValuePaint.setColor(0xffffffff);
+    _metricValuePaint.setTextAlign(Paint.Align.LEFT);
+    _metricValuePaint.setTextSize(14f);
+    _metricValuePaint.setFakeBoldText(true);
+
+    _dayNamePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    _dayNamePaint.setAntiAlias(true);
+    _dayNamePaint.setStrokeWidth(1);
+    _dayNamePaint.setStyle(Paint.Style.FILL);
+    _dayNamePaint.setColor(0x80ffffff);
+    _dayNamePaint.setTextAlign(Paint.Align.RIGHT);
+    _dayNamePaint.setTextSize(12f);
+    _dayNamePaint.setFakeBoldText(true);
+
+    _datePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    _datePaint.setAntiAlias(true);
+    _datePaint.setStrokeWidth(1);
+    _datePaint.setStyle(Paint.Style.FILL);
+    _datePaint.setColor(0xffffffff);
+    _datePaint.setTextAlign(Paint.Align.RIGHT);
+    _datePaint.setTextSize(14f);
+    _datePaint.setFakeBoldText(true);
+
+    _timeSeriesPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    _timeSeriesPaint.setAntiAlias(true);
+    _timeSeriesPaint.setStrokeWidth(1);
+    _timeSeriesPaint.setStrokeCap(Paint.Cap.ROUND);
+    _timeSeriesPaint.setStyle(Paint.Style.STROKE);
+    _timeSeriesPaint.setColor(0xb0ffffff);
+
+    _currentValuePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    _currentValuePaint.setAntiAlias(true);
+    _currentValuePaint.setStrokeWidth(1);
+    _currentValuePaint.setStrokeCap(Paint.Cap.ROUND);
+    _currentValuePaint.setStyle(Paint.Style.FILL_AND_STROKE);
+    _currentValuePaint.setColor(0xffffffff);
+
+    _timeSeriesPath = new Path();
+
+    _metricArcBounds = new RectF(9, 9, 310, 310);
+
+    _metricOKPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    _metricOKPaint.setAntiAlias(true);
+    _metricOKPaint.setStrokeWidth(7);
+    _metricOKPaint.setStrokeCap(Paint.Cap.BUTT);
+    _metricOKPaint.setStyle(Paint.Style.STROKE);
+    _metricOKPaint.setColor(0xff35b400);
+    _metricOKPaint.setShadowLayer(4, 0, 0, 0xff35b400);
+
+    _metricWarningPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    _metricWarningPaint.setAntiAlias(true);
+    _metricWarningPaint.setStrokeWidth(7);
+    _metricWarningPaint.setStrokeCap(Paint.Cap.BUTT);
+    _metricWarningPaint.setStyle(Paint.Style.STROKE);
+    _metricWarningPaint.setColor(0xfff4cd00);
+    _metricWarningPaint.setShadowLayer(4, 0, 0, 0xfff4cd00);
+
+    _metricErrorPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    _metricErrorPaint.setAntiAlias(true);
+    _metricErrorPaint.setStrokeWidth(7);
+    _metricErrorPaint.setStrokeCap(Paint.Cap.BUTT);
+    _metricErrorPaint.setStyle(Paint.Style.STROKE);
+    _metricErrorPaint.setColor(0xffdb4437);
+    _metricErrorPaint.setShadowLayer(4, 0, 0, 0xffdb4437);
+
+    _background = createBackground(context);
+    _backgroundPaint = new Paint();
+    _backgroundPaint.setFilterBitmap(true);
   }
 
-  @Override
-  protected void onDetachedFromWindow() {
-    super.onDetachedFromWindow();
-  }
+  private void createTimer() {
+    final Handler timerHandler = new Handler() {
+      @Override
+      public void handleMessage(Message msg) {
+        updateTime();
+      }
+    };
 
-  @Override
-  protected void onSizeChanged(int w, int h, int oldw, int oldh) {
-    super.onSizeChanged(w, h, oldw, oldh);
+    TimerTask timerTask = new TimerTask() {
+      @Override
+      public void run() {
+        timerHandler.sendEmptyMessage(0);
+      }
+    };
+
+    Timer timer = new Timer();
+    timer.scheduleAtFixedRate(timerTask, 0, 1000);
   }
 
   @Override
   protected void onDraw(Canvas canvas) {
     super.onDraw(canvas);
 
+    float value = _values.getLast();
+
     canvas.drawBitmap(_background, 0, 0, _backgroundPaint);
 
-    canvas.drawTextOnPath("LATENCY", _metricHeadingPath, 0, 0, _headingTextPaint);
-    canvas.drawTextOnPath("500ms", _metricValuePath, 0, 0, _valueTextPaint);
-
+    // Day and date
     canvas.drawTextOnPath(_dayFormat.format(_calendar.getTime()).toUpperCase(),
-                          _dateHeadingPath, 0, 0, _headingTextPaint);
+                          _dateHeadingPath, 0, 0, _dayNamePaint);
     canvas.drawTextOnPath(_dateFormat.format(_calendar.getTime()),
-                          _dateValuePath, 0, 0, _valueTextPaint);
+                          _dateValuePath, 0, 0, _datePaint);
 
-    Path path = new Path();
-    path.moveTo(75f, 230f);
+    // Metric value
+    canvas.drawTextOnPath(_metricName.toUpperCase(), _metricHeadingPath, 0, 0, _metricNamePaint);
+    canvas.drawTextOnPath((int)value + _metricUnit, _metricValuePath, 0, 0, _metricValuePaint);
+
+    // Time-series
+    _timeSeriesPath.reset();
 
     float x = 0;
     float y = 0;
     for (int i = 0; i < _values.size(); i++) {
-      x = i * 1.7f + 75;
-      y = _values.get(i) + 230;
-      path.lineTo(x, y);
-    }
-    canvas.drawPath(path, _timeSeriesPaint);
-    canvas.drawCircle(x, y, 1.25f, _currentValuePaint);
+      x = i * 1.7f;
+      y = 40 - _values.get(i) * 40f / (_metricMaxValue * 2);
+      if (y < 0f) {
+        y = 0f;
+      }
 
+      _timeSeriesPath.lineTo(x, y);
+    }
+
+    canvas.save(Canvas.MATRIX_SAVE_FLAG);
+    canvas.translate(75, 220);
+    canvas.drawPath(_timeSeriesPath, _timeSeriesPaint);
+    canvas.drawCircle(x, y, 1.25f, _currentValuePaint);
+    canvas.restore();
+
+    // Metric arc
+    Paint metricPaint;
+    float metricAngle;
+
+    if (value < _metricMaxValue * .9) {
+      metricPaint = _metricOKPaint;
+      metricAngle = 220 * (value / _metricMaxValue);
+    }
+    else if (value > _metricMaxValue) {
+      metricPaint = _metricErrorPaint;
+      metricAngle = 220 + 12.5f * value / _metricMaxValue;
+    }
+    else {
+      metricPaint = _metricWarningPaint;
+      metricAngle = 220 * (value / _metricMaxValue);
+    }
+
+    if (metricAngle > 270) {
+      metricAngle = 270;
+    }
+    if (metricAngle < 10) {
+      metricAngle = 10;
+    }
+
+    canvas.save(Canvas.MATRIX_SAVE_FLAG);
+    canvas.rotate(135, 160, 160);
+    canvas.drawArc(_metricArcBounds, 0, metricAngle, false, metricPaint);
+    canvas.restore();
+
+    // Hour hand
     canvas.save(Canvas.MATRIX_SAVE_FLAG);
     canvas.rotate(30 * (_time.hour + _time.minute / 60f) - 90, 160, 160);
     canvas.drawLine(165, 160, 225, 160, _hourHandPaint);
     canvas.restore();
 
+    // Minute hand
     canvas.save(Canvas.MATRIX_SAVE_FLAG);
     canvas.rotate(6 * (_time.minute + _time.second / 60f) - 90, 160, 160);
     canvas.drawLine(165, 160, 270, 160, _minuteHandPaint);
     canvas.restore();
 
+    // Second hand
     canvas.save(Canvas.MATRIX_SAVE_FLAG);
     canvas.rotate(6 * _time.second - 90, 160, 160);
     canvas.drawLine(165, 160, 280, 160, _secondHandPaint);
@@ -318,8 +421,12 @@ public class WatchFace extends View {
     if (_values.size() == 100) {
       _values.popFirst();
     }
-    _values.addLast(_valueGenerator.nextInt(40) - 20f);
+    _values.addLast(generateMetricValue());
 
     invalidate();
+  }
+
+  private float generateMetricValue() {
+    return _valueGenerator.nextInt(40);
   }
 }
