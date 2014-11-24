@@ -32,16 +32,18 @@ import java.util.Map;
 
 public class MobileMainActivity extends Activity implements GoogleApiClient.ConnectionCallbacks {
 
-  Query _query;
-  ChildEventListener _listener;
-  final ObjectMapper _mapper = new ObjectMapper();
-  Entity _selectedMetric;
-  TextView _selectedMetricTextView;
-  final ArrayList<Double> _values = new ArrayList<Double>(100);
-
   private GoogleApiClient _googleApiClient;
+  private Query _query;
+  private ChildEventListener _queryListener;
+  private TextView _selectedMetricTextView;
+
+  private final ObjectMapper _mapper;
+  private Entity _selectedMetric;
+  private final ArrayList<Double> _values;
 
   public MobileMainActivity() {
+    _mapper = new ObjectMapper();
+    _values = new ArrayList<Double>(100);
   }
 
   @Override
@@ -59,7 +61,7 @@ public class MobileMainActivity extends Activity implements GoogleApiClient.Conn
 
     _selectedMetricTextView = (TextView) findViewById(R.id.chosen_metric);
 
-    final Button chooseMetricButton = (Button)findViewById(R.id.chooseMetric);
+    Button chooseMetricButton = (Button) findViewById(R.id.chooseMetric);
     chooseMetricButton.setOnClickListener(new View.OnClickListener() {
       @Override
       public void onClick(View v) {
@@ -76,24 +78,9 @@ public class MobileMainActivity extends Activity implements GoogleApiClient.Conn
   }
 
   @Override
-  public boolean onCreateOptionsMenu(Menu menu) {
-    // Inflate the menu; this adds items to the action bar if it is present.
-    getMenuInflater().inflate(R.menu.menu_mobile_main, menu);
-    return true;
-  }
-
-  @Override
-  public boolean onOptionsItemSelected(MenuItem item) {
-    // Handle action bar item clicks here. The action bar will
-    // automatically handle clicks on the Home/Up button, so long
-    // as you specify a parent activity in AndroidManifest.xml.
-
-    int id = item.getItemId();
-    if (id == R.id.action_settings) {
-      return true;
-    }
-
-    return super.onOptionsItemSelected(item);
+  protected void onDestroy() {
+    _googleApiClient.disconnect();
+    super.onDestroy();
   }
 
   @Override
@@ -103,26 +90,67 @@ public class MobileMainActivity extends Activity implements GoogleApiClient.Conn
       final String projectId = selection.getString(ProjectActivity.EXTRAS_PROJECT_ID);
       final String metricId = selection.getString(ProjectActivity.EXTRAS_METRIC_ID);
       final String metricMetadata = selection.getString(ProjectActivity.EXTRAS_METRIC_METADATA);
+
       try {
         _selectedMetric = new Entity(metricId, _mapper.readValue(metricMetadata, Map.class));
         _selectedMetricTextView.setText(ProjectSchema.getDisplayName(_selectedMetric.getValues()));
-      } catch (IOException e) {
+      }
+      catch (IOException e) {
         Log.e("DATA", "Failed to deserialize metadata", e);
       }
+
       startListeningForMetric(projectId, metricId);
     }
   }
 
-  void processNewChild(Map<String, Object> metricValue) {
+  private void processNewMetricValue(Map<String, Object> metricValue) {
     double value = ProjectSchema.getMetricValue(metricValue);
     if (_values.size() >= 100) {
       _values.remove(0);
     }
     _values.add(value);
-    onMetricChanges();
+
+    updateMetric();
   }
 
-  void onMetricChanges() {
+  private void startListeningForMetric(String projectId, String metricId) {
+    if (_queryListener != null) {
+      _query.removeEventListener(_queryListener);
+      _query = null;
+      _values.clear();
+    }
+
+    if (_queryListener == null) {
+      _queryListener = new ChildEventListener() {
+        @Override
+        public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+          processNewMetricValue((Map<String, Object>) dataSnapshot.getValue());
+        }
+
+        @Override
+        public void onChildChanged(DataSnapshot dataSnapshot, String s) {
+        }
+
+        @Override
+        public void onChildRemoved(DataSnapshot dataSnapshot) {
+        }
+
+        @Override
+        public void onChildMoved(DataSnapshot dataSnapshot, String s) {
+        }
+
+        @Override
+        public void onCancelled(FirebaseError firebaseError) {
+        }
+      };
+    }
+
+    Firebase ref = new Firebase(ProjectSchema.getMetricUrl(projectId, metricId));
+    _query = ref.orderByChild("timestamp").limitToLast(100);
+    _query.addChildEventListener(_queryListener);
+  }
+
+  private void updateMetric() {
     Map<String, Object> metric = new HashMap<String, Object>(_selectedMetric.getValues());
     metric.put("data", _values);
 
@@ -130,56 +158,10 @@ public class MobileMainActivity extends Activity implements GoogleApiClient.Conn
       String messageData = _mapper.writeValueAsString(metric);
       Log.d("DATA", messageData);
       MessageSender.sendData(_googleApiClient, messageData);
-    } catch (JsonProcessingException e) {
+    }
+    catch (JsonProcessingException e) {
       Log.e("DATA", "Failed to serialize", e);
     }
-  }
-
-  void startListeningForMetric(String projectId, String metricId) {
-    if (_listener != null) {
-      _query.removeEventListener(_listener);
-      _query = null;
-      _values.clear();
-    }
-
-    if (_listener == null) {
-      _listener = new ChildEventListener() {
-        @Override
-        public void onChildAdded(DataSnapshot dataSnapshot, String s) {
-          processNewChild((Map<String, Object>) dataSnapshot.getValue());
-        }
-
-        @Override
-        public void onChildChanged(DataSnapshot dataSnapshot, String s) {
-
-        }
-
-        @Override
-        public void onChildRemoved(DataSnapshot dataSnapshot) {
-
-        }
-
-        @Override
-        public void onChildMoved(DataSnapshot dataSnapshot, String s) {
-
-        }
-
-        @Override
-        public void onCancelled(FirebaseError firebaseError) {
-
-        }
-      };
-    }
-
-    Firebase ref = new Firebase(ProjectSchema.getMetricUrl(projectId, metricId));
-    _query = ref.orderByChild("timestamp").limitToLast(100);
-    _query.addChildEventListener(_listener);
-  }
-
-  @Override
-  protected void onDestroy() {
-    _googleApiClient.disconnect();
-    super.onDestroy();
   }
 
 
