@@ -3,16 +3,26 @@
 
 package google.com.cloudwatch;
 
-import android.content.*;
-import android.graphics.*;
-import android.graphics.drawable.*;
-import android.os.*;
-import android.support.v4.util.*;
-import android.text.format.*;
-import android.view.*;
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.Path;
+import android.graphics.Rect;
+import android.graphics.RectF;
+import android.graphics.drawable.Drawable;
+import android.os.Handler;
+import android.os.Message;
+import android.text.format.Time;
+import android.view.View;
 
-import java.text.*;
-import java.util.*;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Map;
+import java.util.TimeZone;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public final class WatchFace extends View {
 
@@ -50,8 +60,7 @@ public final class WatchFace extends View {
   private String _metricName;
   private String _metricUnit;
   private float _metricMaxValue;
-  private CircularArray<Float> _values;
-  private Random _valueGenerator;
+  private ArrayList<Float> _values;
 
   public WatchFace(Context context) {
     super(context);
@@ -64,12 +73,7 @@ public final class WatchFace extends View {
     _metricName = "Latency";
     _metricUnit = "ms";
     _metricMaxValue = 35;
-    _values = new CircularArray<Float>(100);
-    _valueGenerator = new Random();
-
-    for (int i = 0; i < 50; i++) {
-      _values.addLast(generateMetricValue());
-    }
+    _values = new ArrayList<Float>(100);
 
     createDrawingObjects(context);
     createTimer();
@@ -328,7 +332,10 @@ public final class WatchFace extends View {
   protected void onDraw(Canvas canvas) {
     super.onDraw(canvas);
 
-    float value = _values.getLast();
+    float value = 0;
+    if (!_values.isEmpty()) {
+      value = _values.get(_values.size() - 1);
+    }
 
     canvas.drawBitmap(_background, 0, 0, _backgroundPaint);
 
@@ -417,21 +424,16 @@ public final class WatchFace extends View {
   }
 
   public void updateMetrics(Map<String, Object> metricData) {
+    _values = MetricSchema.getValues(metricData);
+    _metricMaxValue = MetricSchema.getMaxValue(metricData);
+    _metricUnit = MetricSchema.getUnitName(metricData);
+    _metricName = MetricSchema.getDisplayName(metricData);
+
     invalidate();
   }
 
   public void updateTime() {
     _time.setToNow();
-
-    if (_values.size() == 100) {
-      _values.popFirst();
-    }
-    _values.addLast(generateMetricValue());
-
     invalidate();
-  }
-
-  private float generateMetricValue() {
-    return _valueGenerator.nextInt(40);
   }
 }

@@ -25,10 +25,6 @@ public final class ProjectSchema {
         projectId, metricId);
   }
 
-
-
-
-
   private static final String METADATA_URL = "https://shining-fire-2617.firebaseio.com/metadata/";
   private static final String DATA_URL = "https://shining-fire-2617.firebaseio.com/data/";
 
