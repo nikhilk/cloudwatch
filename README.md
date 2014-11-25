@@ -1,4 +1,4 @@
-cloudwatch
-==========
+Cloud Watch
+===========
 
-Cloud + Android Wear + OSS
+BigQuery + IPython + AppEngine + Android Wear -- custom metrics on the go, at a glance.
