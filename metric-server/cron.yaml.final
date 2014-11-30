@@ -1,0 +1,4 @@
+cron:
+- description: serve metrics every minute
+  url: /Metric
+  schedule: every 1 minutes
