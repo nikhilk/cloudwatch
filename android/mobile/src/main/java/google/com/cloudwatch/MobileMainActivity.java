@@ -7,10 +7,10 @@ import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.ListView;
 import android.widget.TextView;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -40,6 +40,9 @@ public class MobileMainActivity extends Activity implements GoogleApiClient.Conn
   private final ObjectMapper _mapper;
   private Entity _selectedMetric;
   private final ArrayList<Double> _values;
+  private ArrayAdapter<Double> _valuesAdapter;
+
+  private ListView _valuesView;
 
   public MobileMainActivity() {
     _mapper = new ObjectMapper();
@@ -60,6 +63,7 @@ public class MobileMainActivity extends Activity implements GoogleApiClient.Conn
     setContentView(R.layout.activity_mobile_main);
 
     _selectedMetricTextView = (TextView) findViewById(R.id.chosen_metric);
+    _valuesView = (ListView) findViewById(R.id.values_list);
 
     Button chooseMetricButton = (Button) findViewById(R.id.chooseMetric);
     chooseMetricButton.setOnClickListener(new View.OnClickListener() {
@@ -73,6 +77,9 @@ public class MobileMainActivity extends Activity implements GoogleApiClient.Conn
     GoogleApiClient.Builder apiClientBuilder = new GoogleApiClient.Builder(this);
     _googleApiClient = apiClientBuilder.addApi(Wearable.API).build();
     _googleApiClient.connect();
+
+    _valuesAdapter = new ArrayAdapter<Double>(this, android.R.layout.simple_list_item_1, _values);
+    _valuesView.setAdapter(_valuesAdapter);
 
     Firebase.setAndroidContext(this);
   }
@@ -109,6 +116,8 @@ public class MobileMainActivity extends Activity implements GoogleApiClient.Conn
       _values.remove(0);
     }
     _values.add(value);
+
+    _valuesAdapter.notifyDataSetChanged();
 
     updateMetric();
   }
