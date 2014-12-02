@@ -23,7 +23,7 @@ class sample_metric_writer():
         rows = []
         body = {"rows":rows}
         for i in range (0, n):
-            item = {"json": {"time": metric_list.items[i]['time'], "value": metric_list.items[i]['value'],}}
+            item = {"json": {"time": metric_list[i]['timestamp'], "value": metric_list[i]['value'],}}
             body['rows'].append(item)
         return body
 

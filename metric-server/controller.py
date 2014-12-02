@@ -39,10 +39,10 @@ class MainPage(webapp2.RequestHandler):
 # The logic is for cron job while the handler is for testing one execution
 class MetGenHandler(webapp2.RequestHandler):
     def get(self):
-        #m = generate_data.gen()     
+        result = generate_data.gen(6)     
         #result = metric_writer.write('https://shining-fire-2617.firebaseio.com/data/cloud-androidwear/testmetric.json?auth=wGLkuGRzoPqkBFvICYIhnI8jj3rUUQ9E1jZxTtoy', m.timestamp, m.value)
-        metric_list = generate_data.gen_multiple_metrics()   
-        result = metric_writer.write('https://shining-fire-2617.firebaseio.com/data/cloud-androidwear/', '.json?auth=wGLkuGRzoPqkBFvICYIhnI8jj3rUUQ9E1jZxTtoy', metric_list)
+        #metric_list = generate_data.gen_multiple_metrics()   
+        #result = metric_writer.write('https://shining-fire-2617.firebaseio.com/data/cloud-androidwear/', '.json?auth=wGLkuGRzoPqkBFvICYIhnI8jj3rUUQ9E1jZxTtoy', metric_list)
         self.response.headers['Content-Type'] = 'text/plain'
         self.response.write('ScheduledMetric: ' + str(result))
 

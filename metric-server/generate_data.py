@@ -2,6 +2,7 @@
 
 import time
 import datetime
+import random
 
 # Magic constant: generated value will be in [0, ceiling-1] range
 ceiling = 97
@@ -29,8 +30,8 @@ def gen(n=1):
     metric_list = []
     for i in range (0, n):
         time = metric_timestamp + i*sec_incr
-        value = datetime.datetime.utcnow().microsecond % ceiling
-        dict = {'timestamp':time, 'value': value}
+        random_value = random.randrange(0,ceiling)
+        dict = {'timestamp':time, 'value': random_value}
         metric_list.append(dict)
     return metric_list
 
